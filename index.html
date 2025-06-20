@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Tic Tac Toe IA</title>
+  <style>
+    body {
+      background: #1a1a1a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      font-family: sans-serif;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 20px;
+      font-size: 3em;
+      color: #00e0ff;
+      animation: glow 1s infinite alternate;
+    }
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #00e0ff; }
+      to   { text-shadow: 0 0 20px #00e0ff, 0 0 30px #00e0ff; }
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 100px);
+      grid-template-rows: repeat(3, 100px);
+      gap: 5px;
+    }
+    .cell {
+      background: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5em;
+      cursor: pointer;
+      border-radius: 10px;
+      transition: transform 0.2s;
+    }
+    .cell:hover {
+      transform: scale(1.05);
+    }
+    .cell.taken {
+      cursor: not-allowed;
+    }
+    .cell.x::before {
+      content: 'X';
+      color: #00e0ff;
+      animation: pop 0.3s ease;
+    }
+    .cell.o::before {
+      content: 'O';
+      color: #ff4aff;
+      animation: pop 0.3s ease;
+    }
+    @keyframes pop {
+      0%   { transform: scale(0); opacity: 0; }
+      50%  { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(1); }
+    }
+    .winner {
+      margin-top: 20px;
+      font-size: 2em;
+      color: #0f0;
+      animation: glowWinner 1s infinite alternate;
+    }
+    @keyframes glowWinner {
+      from { text-shadow: 0 0 10px #0f0; }
+      to   { text-shadow: 0 0 20px #0f0, 0 0 30px #0f0; }
+    }
+    button, select {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #00e0ff;
+      border: none;
+      color: #000;
+      border-radius: 8px;
+      font-size: 1em;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-right: 10px;
+    }
+    button:hover, select:hover {
+      background: #00b3cc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tic Tac Toe IA</h1>
+  <div class="board" id="board"></div>
+  <div class="winner" id="winner"></div>
+  <div style="margin-top: 20px;">
+    <select id="difficulty">
+      <option value="player">2 Jugadores</option>
+      <option value="easy">IA Fácil</option>
+      <option value="normal">IA Normal</option>
+      <option value="impossible">IA Imposible</option>
+    </select>
+    <button onclick="resetGame()">Reiniciar</button>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const winnerText = document.getElementById("winner");
+    const difficultySelect = document.getElementById("difficulty");
+    let currentPlayer = "x";
+    let cells = [];
+
+    function createBoard() {
+      board.innerHTML = '';
+      cells = Array(9).fill("");
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.addEventListener("click", () => makeMove(cell, i));
+        board.appendChild(cell);
+      }
+      winnerText.textContent = '';
+    }
+
+    function makeMove(cell, index) {
+      if (cells[index] !== "" || winnerText.textContent !== "") return;
+
+      cells[index] = currentPlayer;
+      cell.classList.add(currentPlayer, "taken");
+
+      if (checkWinner()) {
+        winnerText.textContent = `¡Jugador ${currentPlayer.toUpperCase()} gana! 🎉`;
+        return;
+      }
+
+      if (cells.every(c => c !== "")) {
+        winnerText.textContent = "¡Empate!";
+        return;
+      }
+
+      currentPlayer = currentPlayer === "x" ? "o" : "x";
+
+      if (currentPlayer === "o" && difficultySelect.value !== "player") {
+        setTimeout(iaMove, 500);
+      }
+    }
+
+    function iaMove() {
+      let move;
+      const available = cells.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+      const level = difficultySelect.value;
+
+      if (level === "easy") {
+        move = available[Math.floor(Math.random() * available.length)];
+      } else if (level === "normal") {
+        move = Math.random() < 0.6 ? smartMove() : available[Math.floor(Math.random() * available.length)];
+      } else if (level === "impossible") {
+        move = minimax(cells, "o").index;
+      }
+
+      const cell = board.children[move];
+      makeMove(cell, move);
+    }
+
+    function smartMove() {
+      // Bloquear o ganar si puede
+      const combos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      for (const [a,b,c] of combos) {
+        const line = [cells[a], cells[b], cells[c]];
+        if (line.filter(v => v === "o").length === 2 && line.includes("")) return [a,b,c][line.indexOf("")];
+        if (line.filter(v => v === "x").length === 2 && line.includes("")) return [a,b,c][line.indexOf("")];
+      }
+      const available = cells.map((v, i) => v === "" ? i : null).filter(v => v !== null);
+      return available[Math.floor(Math.random() * available.length)];
+    }
+
+    function checkWinner() {
+      const combos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      return combos.some(combo => {
+        if (cells[combo[0]] && cells[combo[0]] === cells[combo[1]] && cells[combo[0]] === cells[combo[2]]) {
+          combo.forEach(i => {
+            board.children[i].style.background = '#0f0';
+          });
+          return true;
+        }
+        return false;
+      });
+    }
+
+    function resetGame() {
+      currentPlayer = "x";
+      createBoard();
+    }
+
+    function minimax(newBoard, player) {
+      const availSpots = newBoard.map((v,i) => v === "" ? i : null).filter(v => v !== null);
+
+      if (checkWin(newBoard, "x")) return { score: -10 };
+      if (checkWin(newBoard, "o")) return { score: 10 };
+      if (availSpots.length === 0) return { score: 0 };
+
+      const moves = [];
+
+      for (let i = 0; i < availSpots.length; i++) {
+        const move = {};
+        move.index = availSpots[i];
+        newBoard[availSpots[i]] = player;
+
+        if (player === "o") {
+          const result = minimax(newBoard, "x");
+          move.score = result.score;
+        } else {
+          const result = minimax(newBoard, "o");
+          move.score = result.score;
+        }
+
+        newBoard[availSpots[i]] = "";
+        moves.push(move);
+      }
+
+      let bestMove;
+      if (player === "o") {
+        let bestScore = -10000;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score > bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      } else {
+        let bestScore = 10000;
+        for (let i = 0; i < moves.length; i++) {
+          if (moves[i].score < bestScore) {
+            bestScore = moves[i].score;
+            bestMove = i;
+          }
+        }
+      }
+      return moves[bestMove];
+    }
+
+    function checkWin(boardCheck, player) {
+      const combos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+      return combos.some(combo =>
+        combo.every(index => boardCheck[index] === player)
+      );
+    }
+
+    createBoard();
+  </script>
+</body>
+</html>
